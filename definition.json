@@ -1,0 +1,31 @@
+{
+  "icon": "./assets/icon.svg",
+  "name": "Connected Dot Plot",
+  "hint": "A Connected Dot Plot displays data points for two categories connects them with lines to show the change or difference between those points.",
+  "settings": [
+    {
+      "name": {
+        "key": "group"
+      },
+      "settings": [
+        {
+          "name": {
+            "key": "setting"
+          },
+          "key": "key1",
+          "type": "boolean"
+        }
+      ]
+    }
+  ],
+  "bindingsTrays": [
+    {
+      "key": "tray-key",
+      "name": {
+        "key": "tray"
+      },
+      "queryRole": "measure",
+      "minCount": 1
+    }
+  ]
+}
