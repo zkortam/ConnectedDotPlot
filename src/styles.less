@@ -1,4 +1,8 @@
-/* add css module styles here (optional) */
+/* Define CSS variables for dynamic colors */
+:root {
+  --dot-color-one: blue;   /* Default color for Dot One */
+  --dot-color-two: orange; /* Default color for Dot Two */
+}
 
 .test {
   margin: 2em;
@@ -6,4 +10,12 @@
   border: 2px solid #000;
   font-size: 2em;
   text-align: center;
+}
+
+.dot-one {
+  fill: var(--dot-color-one); /* Apply dynamic color for Dot One */
+}
+
+.dot-two {
+  fill: var(--dot-color-two); /* Apply dynamic color for Dot Two */
 }

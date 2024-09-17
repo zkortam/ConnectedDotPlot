@@ -1,31 +1,66 @@
 {
   "icon": "./assets/icon.svg",
-  "name": "Connected Dot Plot",
-  "hint": "A Connected Dot Plot displays data points for two categories connects them with lines to show the change or difference between those points.",
+  "name": "ConnectedDotPlot",
+  "hint": "Display cumulative revenue by division over two periods using a connected dot plot",
+  "options": {
+    "aggregation": true,
+    "individualFilter": true,
+    "aggregateFilter": true
+  },
   "settings": [
     {
       "name": {
-        "key": "group"
+        "key": "Chart Appearance"
       },
       "settings": [
         {
           "name": {
-            "key": "setting"
+            "key": "Dot One"
           },
-          "key": "key1",
-          "type": "boolean"
+          "key": "dotColorOne",
+          "type": "color",
+          "hint": "Select the color for dots representing the year 2023",
+          "default": "blue"
+        },
+        {
+          "name": {
+            "key": "Dot Two"
+          },
+          "key": "dotColorTwo",
+          "type": "color",
+          "hint": "Select the color for dots representing the year 2024",
+          "default": "orange"
+        },
+        {
+          "name": {
+            "key": "Line Tension"
+          },
+          "key": "lineTension",
+          "type": "number",
+          "hint": "Set the tension for lines connecting dots (0 for straight lines, 0.4 for curved)",
+          "default": 0.1
         }
       ]
     }
   ],
   "bindingsTrays": [
     {
-      "key": "tray-key",
+      "key": "tray-key-break",
       "name": {
-        "key": "tray"
+        "key": "Break"
+      },
+      "queryRole": "row",
+      "minCount": 1,
+      "maxCount": 1
+    },
+    {
+      "key": "tray-key-values",
+      "name": {
+        "key": "Values"
       },
       "queryRole": "measure",
-      "minCount": 1
+      "minCount": 2,
+      "maxCount": 2
     }
   ]
 }
