@@ -9,36 +9,64 @@
   },
   "settings": [
     {
-      "name": {
-        "key": "Chart Appearance"
-      },
+      "name": "Chart Appearance",
       "settings": [
         {
-          "name": {
-            "key": "Dot One"
-          },
           "key": "dotColorOne",
+          "name": "Dot One",
           "type": "color",
           "hint": "Select the color for dots representing the year 2023",
-          "default": "blue"
+          "defaultValue": "blue"
         },
         {
-          "name": {
-            "key": "Dot Two"
-          },
           "key": "dotColorTwo",
+          "name": "Dot Two",
           "type": "color",
           "hint": "Select the color for dots representing the year 2024",
-          "default": "orange"
+          "defaultValue": "orange"
         },
         {
-          "name": {
-            "key": "Line Tension"
-          },
-          "key": "lineTension",
-          "type": "number",
-          "hint": "Set the tension for lines connecting dots (0 for straight lines, 0.4 for curved)",
-          "default": 0.1
+          "key": "positiveLineColor",
+          "name": "Positive Line Color",
+          "type": "color",
+          "hint": "Select the color for the line when the difference is positive",
+          "defaultValue": "green"
+        },
+        {
+          "key": "negativeLineColor",
+          "name": "Negative Line Color",
+          "type": "color",
+          "hint": "Select the color for the line when the difference is negative",
+          "defaultValue": "red"
+        },
+        {
+          "key": "sortingStyle",
+          "name": "Sorting Style",
+          "type": "dropdown",
+          "hint": "Select the sorting style for the chart",
+          "options": [
+            {
+              "key": "Original",
+              "label": "Original"
+            },
+            {
+              "key": "Ascending",
+              "label": "Ascending"
+            },
+            {
+              "key": "Descending",
+              "label": "Descending"
+            },
+            {
+              "key": "DifferenceAscending",
+              "label": "Difference Ascending"
+            },
+            {
+              "key": "DifferenceDescending",
+              "label": "Difference Descending"
+            }
+          ],
+          "defaultValue": "Original"
         }
       ]
     }
@@ -46,18 +74,14 @@
   "bindingsTrays": [
     {
       "key": "tray-key-break",
-      "name": {
-        "key": "Break"
-      },
+      "name": "Break",
       "queryRole": "row",
       "minCount": 1,
       "maxCount": 1
     },
     {
       "key": "tray-key-values",
-      "name": {
-        "key": "Values"
-      },
+      "name": "Values",
       "queryRole": "measure",
       "minCount": 2,
       "maxCount": 2
