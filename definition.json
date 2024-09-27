@@ -67,6 +67,12 @@
             }
           ],
           "defaultValue": "Original"
+        },
+        {
+          "key": "isShowingGrid",
+          "name": "Grid",
+          "type": "boolean",
+          "defaultValue": false
         }
       ]
     }
