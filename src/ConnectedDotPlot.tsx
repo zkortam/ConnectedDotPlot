@@ -5,7 +5,7 @@ import {
   ResponseData,
   TContext
 } from '@incorta-org/component-sdk';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import './styles.less'; // Import the styles file
 
@@ -16,6 +16,7 @@ interface ComponentSettings {
   positiveLineColor?: string;
   negativeLineColor?: string;
   sortingStyle?: string;
+  isShowingGrid?: boolean; // New setting for displaying grid
 }
 
 interface Props {
@@ -34,13 +35,22 @@ interface ScatterDataPoint {
 const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const currentSortingStyle = useRef<string>('Original');
 
   const settings = context?.component?.settings as ComponentSettings;
-  const sortingStyle = settings?.sortingStyle || 'Original';
   const dotColorOne = settings?.dotColorOne || 'var(--dot-color-one)';
   const dotColorTwo = settings?.dotColorTwo || 'var(--dot-color-two)';
   const positiveLineColor = settings?.positiveLineColor || 'var(--positive-line-color)';
+  const negativeLineColor = settings?.negativeLineColor || 'var(--negative-line-color)';
   const hoverLineColor = 'blue'; // Hover color for the line
+  const isShowingGrid = settings?.isShowingGrid || false; // Default is false
+
+  // Maintain the current sorting style
+  const [sortingStyle, setSortingStyle] = useState<string>(settings?.sortingStyle || 'Original');
+
+  // State to maintain the current dimensions of the container
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   // Utility function for custom number formatting
   const formatNumber = (value: number): string => {
@@ -78,12 +88,38 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
     }
   };
 
+  // Effect to update the dimensions based on container size
   useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        const { clientWidth, clientHeight } = containerRef.current;
+        setDimensions({ width: clientWidth, height: clientHeight });
+      }
+    };
+
+    // Initial size update
+    handleResize();
+
+    // Add resize event listener
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      // Cleanup event listener on component unmount
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Update sorting style if settings change but do not reset on prop updates
+    if (settings?.sortingStyle !== currentSortingStyle.current) {
+      setSortingStyle(settings.sortingStyle || 'Original');
+      currentSortingStyle.current = settings.sortingStyle || 'Original';
+    }
+
     // Remove any previous SVG elements
     d3.select(svgRef.current).selectAll('*').remove();
 
-    const width = 800;
-    const height = 600; // Adjust height for more space
+    const { width, height } = dimensions;
 
     // Calculate dynamic margin to prevent y-axis labels from being cut off
     const maxLabelLength = Math.max(...data.data.map(d => String(d[0]?.value).length));
@@ -93,7 +129,9 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
 
     const svg = d3.select<SVGSVGElement, unknown>(svgRef.current!)
       .attr('width', width)
-      .attr('height', height);
+      .attr('height', height)
+      .style('border', 'none') // Ensure no border
+      .style('outline', 'none'); // Ensure no outline
 
     // Sort data based on the selected sorting style
     const sortedData = sortData(data.data, sortingStyle);
@@ -255,12 +293,41 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
     const xAxisElement = svg.append('g')
       .attr('class', 'x-axis')
       .attr('transform', `translate(0,${height - margin.bottom})`)
-      .call(xAxis);
+      .call(xAxis as any); // Type assertion to any to bypass TypeScript error
 
     const yAxisElement = svg.append('g')
       .attr('class', 'y-axis')
       .attr('transform', `translate(${margin.left},0)`)
-      .call(yAxis);
+      .call(yAxis as any); // Type assertion to any to bypass TypeScript error
+
+    // Conditionally add grid lines if isShowingGrid is true
+    if (isShowingGrid) {
+      // Add x-axis grid lines
+      svg.append('g')
+        .attr('class', 'x-grid')
+        .attr('transform', `translate(0,${height - margin.bottom})`)
+        .call(
+          d3.axisBottom(xScale)
+            .tickSize(-(height - margin.top - margin.bottom))
+            .tickFormat(() => '')
+        )
+        .selectAll('line')
+        .style('stroke', '#d3d3d3') // Light gray grid lines
+        .style('opacity', 0.5); // Lighter grid lines
+
+      // Add y-axis grid lines
+      svg.append('g')
+        .attr('class', 'y-grid')
+        .attr('transform', `translate(${margin.left},0)`)
+        .call(
+          d3.axisLeft(yScale)
+            .tickSize(-(width - margin.left - margin.right))
+            .tickFormat(() => '')
+        )
+        .selectAll('line')
+        .style('stroke', '#d3d3d3') // Light gray grid lines
+        .style('opacity', 0.5); // Lighter grid lines
+    }
 
     // Zoom and pan behavior
     const zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
@@ -277,19 +344,38 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
         drawElements(newXScale, newYScale);
 
         // Update the axes
-        xAxisElement.call(d3.axisBottom(newXScale).tickFormat((d: d3.NumberValue) => formatNumber(d.valueOf())));
+        xAxisElement.call(d3.axisBottom(newXScale).tickFormat((d: d3.NumberValue) => formatNumber(d.valueOf())) as any); // Type assertion to any to bypass TypeScript error
         yAxisElement.call(d3.axisLeft(newYScale)
           .tickValues(d3.range(0, uniqueCategories.length)) // Ensure only whole numbers are used for ticks
-          .tickFormat((d: d3.NumberValue) => uniqueCategories[Math.floor(d.valueOf())] || '')); // Use unique categories for labels
+          .tickFormat((d: d3.NumberValue) => uniqueCategories[Math.floor(d.valueOf())] || '') as any); // Type assertion to any to bypass TypeScript error
+
+        // Update grid lines if visible
+        if (isShowingGrid) {
+          svg.select('.x-grid').call(
+            d3.axisBottom(newXScale)
+              .tickSize(-(height - margin.top - margin.bottom))
+              .tickFormat(() => '')
+          ).selectAll('line')
+            .style('stroke', '#d3d3d3') // Light gray grid lines
+            .style('opacity', 0.5); // Lighter grid lines
+
+          svg.select('.y-grid').call(
+            d3.axisLeft(newYScale)
+              .tickSize(-(width - margin.left - margin.right))
+              .tickFormat(() => '')
+          ).selectAll('line')
+            .style('stroke', '#d3d3d3') // Light gray grid lines
+            .style('opacity', 0.5); // Lighter grid lines
+        }
       });
 
     // Apply zoom behavior to the SVG
     svg.call(zoomBehavior as unknown as (selection: d3.Selection<SVGSVGElement, unknown, null, undefined>) => void);
 
-  }, [data.data, dotColorOne, dotColorTwo, positiveLineColor, hoverLineColor, sortingStyle]);
+  }, [data.data, dotColorOne, dotColorTwo, positiveLineColor, negativeLineColor, hoverLineColor, sortingStyle, isShowingGrid, dimensions]);
 
   return (
-    <>
+    <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
       <svg ref={svgRef}></svg>
       <div ref={tooltipRef} style={{ 
         position: 'absolute', 
@@ -301,7 +387,7 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
         pointerEvents: 'none' // Prevent interference with hover events
         }}>
       </div>
-    </>
+    </div>
   );
 };
 
