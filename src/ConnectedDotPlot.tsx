@@ -52,6 +52,9 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
   // State to maintain the current dimensions of the container
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
+  // Define the margin object (adjust these as needed for padding)
+  const margin = { top: 20, right: 30, bottom: 30, left: 50 };
+
   // Utility function for custom number formatting
   const formatNumber = (value: number): string => {
     const absValue = Math.abs(value);
@@ -109,6 +112,14 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
     };
   }, []);
 
+  // Function to determine how many labels to skip based on available space
+  const calculateLabelSkip = (axisLength: number, totalLabels: number, labelSize: number) => {
+    const availableSpace = axisLength - margin.top - margin.bottom; // Available space for labels
+    const labelsFit = Math.floor(availableSpace / labelSize); // How many labels can fit
+    const skipFactor = Math.ceil(totalLabels / labelsFit); // Determine the skip factor
+    return skipFactor;
+  };
+
   useEffect(() => {
     // Update sorting style if settings change but do not reset on prop updates
     if (settings?.sortingStyle !== currentSortingStyle.current) {
@@ -125,7 +136,7 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
     const maxLabelLength = Math.max(...data.data.map(d => String(d[0]?.value).length));
     const leftMargin = Math.min(40 + maxLabelLength * 8, 100); // Adjust based on label length, with a max limit
 
-    const margin = { top: 20, right: 30, bottom: 30, left: leftMargin };
+    const newMargin = { ...margin, left: leftMargin }; // Use dynamic left margin
 
     const svg = d3.select<SVGSVGElement, unknown>(svgRef.current!)
       .attr('width', width)
@@ -142,25 +153,29 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
     // Set up scales
     const xScale = d3.scaleLinear()
       .domain([0, d3.max(sortedData, d => Math.max(Number(d[1]?.value) || 0, Number(d[2]?.value) || 0)) ?? 0])
-      .range([margin.left, width - margin.right]);
+      .range([newMargin.left, width - newMargin.right]);
 
     // Use a linear scale for the y-axis to support zooming
     const yScale = d3.scaleLinear()
       .domain([0, uniqueCategories.length - 1])
-      .range([margin.top, height - margin.bottom]);
+      .range([newMargin.top, height - newMargin.bottom]);
+
+    // Calculate how many labels to skip based on width (for X-axis) and height (for Y-axis)
+    const xSkipFactor = calculateLabelSkip(width, sortedData.length, 50); // 50 is the approximate width of an X-axis label
+    const ySkipFactor = calculateLabelSkip(height, uniqueCategories.length, 20); // 20 is the approximate height of a Y-axis label
 
     // Add a clip path to ensure lines and dots don't go beyond axes
     svg.append('defs')
       .append('clipPath')
       .attr('id', 'clip-path')
       .append('rect')
-      .attr('x', margin.left)
-      .attr('y', margin.top)
-      .attr('width', width - margin.left - margin.right)
-      .attr('height', height - margin.top - margin.bottom);
+      .attr('x', newMargin.left)
+      .attr('y', newMargin.top)
+      .attr('width', width - newMargin.left - newMargin.right)
+      .attr('height', height - newMargin.top - newMargin.bottom);
 
     // Function to draw lines and dots with updated scales
-    const drawElements = (xScale: d3.ScaleLinear<number, number>, yScale: d3.ScaleLinear<number, number>) => {
+    const drawElements = (xScale: d3.ScaleLinear<number, number>, yScale: d3.ScaleLinear<number, number>, xSkipFactor: number, ySkipFactor: number) => {
       // Clear existing elements
       svg.selectAll('.dots-group').remove();
       svg.selectAll('.lines-group').remove();
@@ -182,14 +197,18 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
         .attr('class', 'lines-group')
         .attr('clip-path', 'url(#clip-path)');
 
-      // Draw visible lines
+      // Draw visible lines with conditional color based on the difference between points
       linesGroup.selectAll('.line')
         .data(lineData)
         .enter()
         .append('path')
         .attr('class', 'line')
         .attr('d', d => lineGenerator(d) || '') // Ensure lineGenerator returns a string
-        .attr('stroke', positiveLineColor)
+        .attr('stroke', d => {
+          // Determine the color based on the difference between the second and first points
+          const difference = d[1].x - d[0].x;
+          return difference >= 0 ? positiveLineColor : negativeLineColor;
+        })
         .attr('stroke-width', 1)
         .attr('fill', 'none');
 
@@ -276,58 +295,61 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
         });
     };
 
+    const drawAxis = (xScale: d3.ScaleLinear<number, number>, yScale: d3.ScaleLinear<number, number>, xSkipFactor: number, ySkipFactor: number) => {
+      // Add x-axis with skipping logic
+      const xAxis = d3.axisBottom(xScale)
+        .ticks(sortedData.length)
+        .tickFormat((d: d3.NumberValue, index: number) => (index % xSkipFactor === 0 ? formatNumber(d.valueOf()) : '') as string); // Skip X-axis labels
+
+      // Add y-axis with skipping logic
+      const yAxis = d3.axisLeft(yScale)
+        .tickValues(d3.range(0, uniqueCategories.length)
+        .filter((_, index) => index % ySkipFactor === 0)) // Skip every nth label for Y-axis
+        .tickFormat((d: d3.NumberValue) => uniqueCategories[Math.floor(d.valueOf())] || ''); // Use unique categories for labels
+
+      const xAxisElement = svg.append('g')
+        .attr('class', 'x-axis')
+        .attr('transform', `translate(0,${height - newMargin.bottom})`)
+        .call(xAxis as any); // Type assertion to any to bypass TypeScript error
+
+      const yAxisElement = svg.append('g')
+        .attr('class', 'y-axis')
+        .attr('transform', `translate(${newMargin.left},0)`)
+        .call(yAxis as any); // Type assertion to any to bypass TypeScript error
+
+      // Conditionally add grid lines if isShowingGrid is true
+      if (isShowingGrid) {
+        // Add x-axis grid lines
+        svg.append('g')
+          .attr('class', 'x-grid')
+          .attr('transform', `translate(0,${height - newMargin.bottom})`)
+          .call(
+            d3.axisBottom(xScale)
+              .tickSize(-(height - newMargin.top - newMargin.bottom))
+              .tickFormat(() => '')
+          )
+          .selectAll('line')
+          .style('stroke', '#d3d3d3') // Light gray grid lines
+          .style('opacity', 0.5); // Lighter grid lines
+
+        // Add y-axis grid lines
+        svg.append('g')
+          .attr('class', 'y-grid')
+          .attr('transform', `translate(${newMargin.left},0)`)
+          .call(
+            d3.axisLeft(yScale)
+              .tickSize(-(width - newMargin.left - newMargin.right))
+              .tickFormat(() => '')
+          )
+          .selectAll('line')
+          .style('stroke', '#d3d3d3') // Light gray grid lines
+          .style('opacity', 0.5); // Lighter grid lines
+      }
+    };
+
     // Draw initial elements with default scales
-    drawElements(xScale, yScale);
-
-    // Add x-axis
-    const xAxis = d3.axisBottom(xScale)
-      .ticks(5) // Control the number of ticks
-      .tickFormat((d: d3.NumberValue) => formatNumber(d.valueOf())); // Apply custom formatting to x-axis
-
-    // Add y-axis with fixed tick values based on unique categories
-    const yAxis = d3.axisLeft(yScale)
-      .tickValues(d3.range(0, uniqueCategories.length)) // Ensure only whole numbers are used for ticks
-      .tickFormat((d: d3.NumberValue) => uniqueCategories[Math.floor(d.valueOf())] || ''); // Use unique categories for labels
-
-    // Append x-axis and y-axis
-    const xAxisElement = svg.append('g')
-      .attr('class', 'x-axis')
-      .attr('transform', `translate(0,${height - margin.bottom})`)
-      .call(xAxis as any); // Type assertion to any to bypass TypeScript error
-
-    const yAxisElement = svg.append('g')
-      .attr('class', 'y-axis')
-      .attr('transform', `translate(${margin.left},0)`)
-      .call(yAxis as any); // Type assertion to any to bypass TypeScript error
-
-    // Conditionally add grid lines if isShowingGrid is true
-    if (isShowingGrid) {
-      // Add x-axis grid lines
-      svg.append('g')
-        .attr('class', 'x-grid')
-        .attr('transform', `translate(0,${height - margin.bottom})`)
-        .call(
-          d3.axisBottom(xScale)
-            .tickSize(-(height - margin.top - margin.bottom))
-            .tickFormat(() => '')
-        )
-        .selectAll('line')
-        .style('stroke', '#d3d3d3') // Light gray grid lines
-        .style('opacity', 0.5); // Lighter grid lines
-
-      // Add y-axis grid lines
-      svg.append('g')
-        .attr('class', 'y-grid')
-        .attr('transform', `translate(${margin.left},0)`)
-        .call(
-          d3.axisLeft(yScale)
-            .tickSize(-(width - margin.left - margin.right))
-            .tickFormat(() => '')
-        )
-        .selectAll('line')
-        .style('stroke', '#d3d3d3') // Light gray grid lines
-        .style('opacity', 0.5); // Lighter grid lines
-    }
+    drawElements(xScale, yScale, xSkipFactor, ySkipFactor);
+    drawAxis(xScale, yScale, xSkipFactor, ySkipFactor);
 
     // Zoom and pan behavior
     const zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
@@ -341,31 +363,31 @@ const ConnectedDotPlot: React.FC<Props> = ({ context, prompts, data }) => {
         const newYScale = transform.rescaleY(yScale);
 
         // Draw elements with new scales
-        drawElements(newXScale, newYScale);
+        drawElements(newXScale, newYScale, 1, 1); // No skipping during zoom
 
         // Update the axes
-        xAxisElement.call(d3.axisBottom(newXScale).tickFormat((d: d3.NumberValue) => formatNumber(d.valueOf())) as any); // Type assertion to any to bypass TypeScript error
-        yAxisElement.call(d3.axisLeft(newYScale)
+        svg.select('.x-axis').call(d3.axisBottom(newXScale).tickFormat((d: d3.NumberValue) => formatNumber(d.valueOf())) as any);
+        svg.select('.y-axis').call(d3.axisLeft(newYScale)
           .tickValues(d3.range(0, uniqueCategories.length)) // Ensure only whole numbers are used for ticks
-          .tickFormat((d: d3.NumberValue) => uniqueCategories[Math.floor(d.valueOf())] || '') as any); // Type assertion to any to bypass TypeScript error
+          .tickFormat((d: d3.NumberValue) => uniqueCategories[Math.floor(d.valueOf())] || '') as any);
 
         // Update grid lines if visible
         if (isShowingGrid) {
           svg.select('.x-grid').call(
             d3.axisBottom(newXScale)
-              .tickSize(-(height - margin.top - margin.bottom))
+              .tickSize(-(height - newMargin.top - newMargin.bottom))
               .tickFormat(() => '')
           ).selectAll('line')
             .style('stroke', '#d3d3d3') // Light gray grid lines
-            .style('opacity', 0.5); // Lighter grid lines
+            .style('opacity', 0.5);
 
           svg.select('.y-grid').call(
             d3.axisLeft(newYScale)
-              .tickSize(-(width - margin.left - margin.right))
+              .tickSize(-(width - newMargin.left - newMargin.right))
               .tickFormat(() => '')
           ).selectAll('line')
             .style('stroke', '#d3d3d3') // Light gray grid lines
-            .style('opacity', 0.5); // Lighter grid lines
+            .style('opacity', 0.5);
         }
       });
 
