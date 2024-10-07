@@ -2,20 +2,79 @@
 :root {
   --dot-color-one: blue;   /* Default color for Dot One */
   --dot-color-two: orange; /* Default color for Dot Two */
+  --positive-line-color: green; /* Default color for positive line */
+  --negative-line-color: red; /* Default color for negative line */
 }
 
-.test {
-  margin: 2em;
-  padding: 0.5em;
-  border: 2px solid #000;
-  font-size: 2em;
+/* Container styles */
+.chart-container {
+  height: 600px;
+  position: relative;
+}
+
+/* Canvas styles */
+.chart-canvas {
+  height: 100%;
+  width: 100%;
+}
+
+/* Pop-up styles */
+.popup {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.7); /* Black with 70% opacity */
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px; /* 5px rounded corners */
+  height: 15px; /* Reduced from 30px to 15px */
+  line-height: 15px; /* Vertically center text in smaller container */
+  font-size: 14px;
+  z-index: 1000;
+}
+
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 15px;
   text-align: center;
+  position: relative;
 }
 
-.dot-one {
-  fill: var(--dot-color-one); /* Apply dynamic color for Dot One */
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
 }
 
-.dot-two {
-  fill: var(--dot-color-two); /* Apply dynamic color for Dot Two */
+.modal-buttons button {
+  border: none;
+  border-radius: 20px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.modal-buttons .confirm {
+  background-color: blue;
+  color: white;
+  margin-right: 10px;
+  width: 150px;
+}
+
+.modal-buttons .cancel {
+  background-color: grey;
+  color: black;
+  width: 100px;
 }
