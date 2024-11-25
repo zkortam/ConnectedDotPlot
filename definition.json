@@ -80,14 +80,14 @@
   "bindingsTrays": [
     {
       "key": "tray-key-break",
-      "name": "Break",
+      "name": "Grouping dimension",
       "queryRole": "row",
       "minCount": 1,
       "maxCount": 1
     },
     {
       "key": "tray-key-values",
-      "name": "Values",
+      "name": "Measure",
       "queryRole": "measure",
       "minCount": 2,
       "maxCount": 2
